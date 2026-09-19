@@ -1,143 +1,91 @@
-# RoomFlow - Meeting Room Booking System
-[![RoomFlow CI](https://github.com/IWKMS99/RoomFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/IWKMS99/RoomFlow/actions/workflows/ci.yml)
-![Java](https://img.shields.io/badge/Java-24-blue?style=for-the-badge&logo=openjdk)
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.6-green?style=for-the-badge&logo=spring)
-![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?style=for-the-badge&logo=postgresql)
-![MinIO](https://img.shields.io/badge/MinIO-S3-red?style=for-the-badge&logo=minio)
-![Docker](https://img.shields.io/badge/Docker-ready-blue?style=for-the-badge&logo=docker)
-![License](https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge)
+# Лабораторная работа №4 — SEO и внешнее API
 
-**RoomFlow** is a modern web application for convenient booking of meeting rooms in the office. It provides an interactive visual schedule, an advanced admin panel, and integrations for conflict protection (including public holidays).
+RoomFlow: бронирование переговорных комнат. Продолжение [исходного MVP](https://github.com/IWKMS99/RoomFlow) на согласованном стеке Java 24 / Spring Boot 3, React 19 / TypeScript, PostgreSQL и S3. История разработки сохранена.
 
-## Key Features
-* **Interactive Schedule:** Visual representation of room occupancy (Drag-to-select for time selection), protection against overlaps and booking limit checks.
-* **Admin Panel (RBAC):** Management of meeting rooms (CRUD), user moderation (role assignment), management of all bookings in the system.
-* **File Storage (S3):** Upload of meeting room images and PDF documents via MinIO. Images are automatically pulled into room cards.
-* **Holiday Calendar Integration:** Integration with external API (Nager.Date) for automatic prohibition of bookings on non-working/holiday days (protected by Circuit Breaker pattern).
-* **Advanced UX/UI:** Spatial UI interface, smooth morphing animations based on `framer-motion`, light/dark themes, internationalization (EN/RU).
-* **SEO Optimization:** Dynamic meta tags, JSON-LD microdata, and automatically generated `sitemap.xml`.
+## Что реализовано
 
-<details>
-<summary><strong>Technology Stack</strong></summary>
+- Публичное расписание и страницы переговорных с семантической разметкой, title, description, canonical, Open Graph и JSON-LD (`WebApplication` / `Place`). Метаданные публичных страниц присутствуют уже в HTML сервера, до выполнения JavaScript; React обновляет их при переходах.
+- Динамические `sitemap.xml` и `robots.txt`, учитывающие `APP_PUBLIC_BASE_URL`. В sitemap только публичное расписание и активные комнаты. Личные разделы и аутентификация исключены из индексации.
+- Корректный HTTP 404 для отсутствующей/неактивной комнаты и неизвестного URL в контейнерном окружении. Неизвестная комната не подменяется успешным HTTP 200.
+- Изображения комнат, разбиение JS на chunks, lazy loading страниц входа/регистрации, сжатие gzip и длительный кеш файлов с хешированными именами.
+- Серверная интеграция Nager.Date: адаптер `HolidayGateway`, нормализация ответа, ограничение запросов, таймауты, повторные попытки, circuit breaker и кеш успешных ответов.
+- В интерфейсе отдельные состояния загрузки, отсутствия праздников и ошибки с повторной загрузкой. При недоступности календаря можно просматривать расписание; подтверждение новых броней приостанавливается, чтобы не обойти правило праздничных дней. Отмена существующей брони остаётся доступна.
 
-### Backend
-- **Language:** Java 24
-- **Framework:** Spring Boot 3.5.6
-- **Data Access:** Spring Data JPA (Hibernate), PostgreSQL 16, Flyway
-- **File Storage:** MinIO (AWS S3 SDK)
-- **Security:** Spring Security, JWT (Access + HttpOnly Refresh Cookie)
-- **Integrations:** RestClient, Resilience4j (CircuitBreaker, Retry), Caffeine Cache
-- **API Documentation:** OpenAPI (Swagger UI)
-- **Code Quality:** SpotBugs, PMD, Spotless
-
-### Frontend
-- **Library:** React 19 (TypeScript)
-- **Architecture & State:** Feature-Sliced Design (partial), Zustand, React Query
-- **Routing:** TanStack Router
-- **Styling:** Tailwind CSS, clsx, tailwind-merge
-- **Animations:** Framer Motion, @use-gesture/react
-- **Utilities:** Zod, React Hook Form, i18next
-- **Build:** Vite
-
-### DevOps
-- **Containerization:** Docker, Docker Compose
-- **Web Server/Proxy:** Nginx
-</details>
-
-## Architecture
-The project is a SPA application on React that interacts with a monolithic Spring Boot REST API. PostgreSQL is used as the database, and a local S3-compatible storage — MinIO — is used for media files.
+## Архитектура
 
 ```mermaid
-graph TD
-    subgraph "Client"
-        Browser[Browser]
-    end
-    subgraph "Server (Docker)"
-        Nginx[Nginx]
-        App[Spring Boot App]
-        DB[(PostgreSQL)]
-        S3[(MinIO / S3)]
-    end
-    External[Nager.Date API<br>Holiday Calendar]
-    Browser -- "HTTP :8080" --> Nginx
-    Nginx -- "Serves static" --> Browser
-    Nginx -- "Proxy /api/*" --> App
-    Browser -- "Image requests" --> S3
-    App -- "JDBC (app -> db:5432)" --> DB
-    App -- "S3 SDK" --> S3
-    App -- "REST" --> External
+flowchart LR
+    Browser[React / TypeScript] --> Nginx
+    Nginx --> Pages[Публичный HTML / sitemap / robots]
+    Nginx --> API[REST API]
+    Pages --> PG[(PostgreSQL)]
+    API --> Service[Сервисы бронирования]
+    Service --> PG
+    Service --> Calendar[HolidayService]
+    Calendar --> Gateway[Кеш / rate limit / retry / circuit breaker]
+    Gateway --> External[Nager.Date]
+    API --> S3[(S3 / MinIO)]
 ```
 
-## Requirements for Running
-- [Docker](https://www.docker.com/get-started) and Docker Compose
-- [Node.js](https://nodejs.org/) v20+ and npm (for local development)
-- [JDK](https://www.oracle.com/java/technologies/downloads/) 24 (for building/running the backend outside Docker)
+Аспекты кеширования и устойчивости расположены в отдельном Spring bean, поэтому они применяются и при проверке календаря внутри бизнес-операций. Ответ ошибки не кешируется как пустой список праздников. Оба типа запроса (UI и бронирование) используют один адаптер.
 
-## Running the Project
-### 1. Configuration Preparation
-Clone the repository and set up environment variables:
+## Запуск
+
+Нужны Docker с Compose. Скопировать `.env.example` в `.env`, задать собственные значения секретов. Нельзя использовать демонстрационные значения в публичном окружении.
+
 ```bash
-git clone https://github.com/IWKMS99/RoomFlow.git
-cd RoomFlow
 cp .env.example .env
+docker compose -f docker-compose.prod.yml up --build -d
 ```
-*(In the `.env` file, specify passwords for PostgreSQL, MinIO, and the JWT secret key.)*
 
-### 2. Development Mode
-In dev mode, the backend, database, and MinIO run in Docker, while the frontend runs locally via Vite (with hot-reload).
-1. **Start the backend and infrastructure:**
-    ```bash
-    docker-compose up --build
-    ```
-    * Backend available at: `http://localhost:8081`
-    * MinIO Console (File Storage): `http://localhost:9001` (Credentials from `.env`)
-2. **Start the frontend (in a new terminal window):**
-    ```bash
-    cd frontend
-    npm install
-    npm run dev
-    ```
-    The frontend will be available at `http://localhost:5173`.
+Приложение: `http://localhost:8080`. MinIO console: `http://localhost:9001`. Для S3 из браузера `S3_PUBLIC_ENDPOINT` должен быть доступным адресом, а не контейнерным DNS. Бакет закрытый; приложение выдаёт временные подписанные ссылки.
 
-### 3. Production Mode
-Launches the entire application (including the built frontend served via Nginx) in an isolated Docker network.
-1. **Start all services:**
-    ```bash
-    docker-compose -f docker-compose.prod.yml up --build -d
-    ```
-   The application will be fully available at `http://localhost:8080`.
-2. **Stop services:**
-    ```bash
-    docker-compose -f docker-compose.prod.yml down
-    ```
+Для разработки frontend отдельно:
 
----
-* **Hint:** On the first run, Flyway migration scripts will automatically create the default administrator.*
-* **Email:** `admin@roomflow.local`
-* **Password:** `admin123`
-
-## Code Quality and Testing
-The project actively uses static analyzers and tests (Playwright for e2e, Vitest for frontend, JUnit + Testcontainers for backend integration tests).
-
-**Backend (Gradle):**
 ```bash
-./gradlew check # Run linters (SpotBugs, PMD) and autotests
-./gradlew spotlessApply # Code formatting according to Palantir standards
+cd frontend
+npm ci
+npm run dev
 ```
 
-**Frontend (NPM):**
+Backend: JDK 24, PostgreSQL, MinIO и переменные окружения из `.env`. `./gradlew bootRun` (Windows: `gradlew.bat bootRun`). Vite проксирует API на `localhost:8081` либо `VITE_PROXY_TARGET`.
+
+## Конфигурация интеграции
+
+| Переменная | Назначение |
+|---|---|
+| `APP_PUBLIC_BASE_URL` | Публичный HTTPS origin для серверных метаданных и sitemap |
+| `VITE_PUBLIC_BASE_URL` | Необязательный origin для клиентских метаданных; по умолчанию текущий origin |
+| `HOLIDAY_API_BASE_URL` | Адрес провайдера, по умолчанию `https://date.nager.at` |
+| `HOLIDAY_API_TIMEOUT_MS` | Connect/read timeout, по умолчанию 1000 мс |
+| `HOLIDAY_DEFAULT_COUNTRY` | Двухбуквенный код страны, по умолчанию RU |
+
+Nager.Date public API не требует ключа. Ключи хранилища и JWT передаются через окружение; значения секретов не включаются в клиентскую сборку. Если провайдер требует авторизации, ключ должен оставаться в серверном адаптере.
+
+Ограничения по умолчанию: 10 исходящих вызовов в секунду на экземпляр; до двух попыток с паузой 500 мс; кеш успешного ответа 24 часа, не более 200 записей; circuit breaker открывается на 30 секунд после превышения 50% ошибок в окне (минимум 5 вызовов). Валидация API: год 1970–2100, код страны из двух букв. При масштабировании лимит каждого экземпляра нужно согласовать с общей квотой провайдера.
+
+## Проверка
+
 ```bash
-npm run test # Unit testing (Vitest)
-npm run lint # ESLint check
-npm run test:e2e # Run E2E tests (Playwright)
+cd frontend
+npm ci
+npm run lint
+npm run test
+npm run build
+cd ..
+./gradlew check
 ```
 
-## API Documentation
-In development mode, OpenAPI 3 documentation and a convenient UI for testing endpoints are available via built-in Swagger:
-- Swagger UI: [http://localhost:8081/swagger-ui.html](http://localhost:8081/swagger-ui.html)
+Перед тестами серверных HTML-страниц необходимо собрать frontend: Gradle включает `frontend/dist` в ресурсы приложения. PostgreSQL для интеграционных тестов запускается Testcontainers в отдельном контейнере. Дополнительно `cd frontend && npx playwright install chromium && npm run test:e2e` проверяет интерфейс с контролируемыми ответами API.
 
-The frontend automatically generates an API client (`orval`) based on this schema (see `npm run generate:api`).
+Проверяемые сценарии: отсутствие комнаты → 404/noindex; исходный HTML содержит canonical/OG/JSON-LD; sitemap содержит активные комнаты; robots содержит правильный origin; календарь недоступен → HTTP 503; попытка бронирования при ошибке календаря → 503 без создания записи; праздничная дата → 409.
 
-## License
-This project is distributed under the MIT license. See the `LICENSE` file for details.
+## Ограничения и решения
+
+- Локальный Vite — сервер разработки, проверять поисковые HTTP-статусы следует через production Nginx.
+- Сервер формирует SEO-оболочку, интерактивное расписание загружается React. Это не полный SSR React-компонентов.
+- Open Graph изображение по умолчанию — встроенный SVG; для социальных сетей, принимающих только PNG/JPEG, следует задать `image` с растровым изображением комнаты.
+- Nager.Date отражает общегосударственные праздники, а не полный производственный календарь компании. Переносы рабочих дней требуют отдельного источника.
+- Приватные маршруты дополнительно защищены API/RBAC; robots.txt не является механизмом безопасности.
+
+Документация: [Nager.Date API](https://date.nager.at/Api), [Resilience4j](https://resilience4j.readme.io/docs/getting-started-3), [Google: JavaScript SEO](https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics).
