@@ -3,6 +3,7 @@ package iwkms.roomflow.app.web.exception;
 import iwkms.roomflow.app.web.exception.dto.ErrorResponseDto;
 import iwkms.roomflow.app.web.exception.dto.ValidationErrorResponseDto;
 import iwkms.roomflow.exception.BookingConflictException;
+import iwkms.roomflow.exception.HolidayUnavailableException;
 import iwkms.roomflow.exception.InvalidFileException;
 import iwkms.roomflow.exception.InvalidRefreshTokenException;
 import iwkms.roomflow.exception.RefreshTokenExpiredException;
@@ -22,6 +23,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    @ExceptionHandler(HolidayUnavailableException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public ErrorResponseDto handleHolidayUnavailable(HolidayUnavailableException ex) {
+        return new ErrorResponseDto(HttpStatus.SERVICE_UNAVAILABLE.value(), ex.getMessage());
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)

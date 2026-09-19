@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = 'http://localhost:8080';
+const DEFAULT_BASE_URL = typeof window === 'undefined' ? 'http://localhost:8080' : window.location.origin;
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
@@ -18,4 +18,4 @@ export const absoluteUrl = (path: string) => {
   return `${base}${path}`;
 };
 
-export const defaultOgImageUrl = absoluteUrl('/og-default.png');
+export const defaultOgImageUrl = absoluteUrl('/og-default.svg');

@@ -215,5 +215,11 @@
   "cursor.book": "BOOK",
   "cursor.role": "ROLE",
   "cursor.status": "STATUS",
-  "cursor.drag": "DRAG"
+  "cursor.drag": "DRAG",
+  "calendar": {
+    "loading": "Loading holiday calendar…",
+    "unavailable": "The holiday calendar is unavailable. You can view the schedule; new bookings will resume when holiday checks recover.",
+    "retry": "Retry",
+    "empty": "No public holidays found for this year."
+  }
 }

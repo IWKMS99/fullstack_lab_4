@@ -28,6 +28,39 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class PublicApiIT {
 
+    @Test
+    void shouldRenderMetadataWithoutJavascript() throws Exception {
+        mockMvc.perform(get("/web/schedule/room/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("rel=\"canonical\"")))
+                .andExpect(content().string(containsString("application/ld+json")))
+                .andExpect(content().string(containsString("og:description")));
+    }
+
+    @Test
+    void shouldReturnReal404ForUnknownPublicRoom() throws Exception {
+        mockMvc.perform(get("/web/schedule/room/" + UUID.randomUUID()))
+                .andExpect(status().isNotFound())
+                .andExpect(content().string(containsString("noindex,nofollow")));
+    }
+
+    @Test
+    void shouldExposeCalendarFailureInsteadOfEmptySuccess() throws Exception {
+        when(holidayService.getHolidays(2026, "RU"))
+                .thenThrow(
+                        new iwkms.roomflow.exception.HolidayUnavailableException(new IllegalStateException("offline")));
+        mockMvc.perform(get("/api/v1/holidays").param("year", "2026").param("country", "RU"))
+                .andExpect(status().isServiceUnavailable());
+    }
+
+    @Test
+    void shouldGenerateRobotsForConfiguredOrigin() throws Exception {
+        mockMvc.perform(get("/web/robots.txt"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Disallow: /admin")))
+                .andExpect(content().string(containsString("Sitemap: http://localhost:8080/sitemap.xml")));
+    }
+
     @Autowired
     private MockMvc mockMvc;
 

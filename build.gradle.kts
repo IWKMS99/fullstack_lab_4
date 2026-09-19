@@ -118,3 +118,9 @@ tasks.named("check") {
 tasks.named("pmdTest") {
     enabled = false
 }
+
+tasks.processResources {
+    from("frontend/dist") {
+        into("static")
+    }
+}

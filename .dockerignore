@@ -3,3 +3,12 @@ build/
 .idea/
 *.log
 .DS_Store
+.git/
+.env
+.env.*
+!.env.example
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+frontend/coverage/

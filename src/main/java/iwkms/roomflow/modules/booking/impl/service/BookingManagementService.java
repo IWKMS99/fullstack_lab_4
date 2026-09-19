@@ -18,7 +18,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional
-@Slf4j
 public class BookingManagementService {
 
     private final BookingRepository bookingRepository;
@@ -86,18 +84,7 @@ public class BookingManagementService {
     }
 
     private boolean isPublicHoliday(LocalDate date) {
-        try {
-            List<HolidayDto> holidays = holidayService.getHolidays(date.getYear(), "RU");
-            return holidays.stream().anyMatch(holiday -> holiday.date().equals(date));
-        } catch (RuntimeException ex) {
-            if (log.isWarnEnabled()) {
-                log.warn(
-                        "Holiday API unavailable, skipping holiday restriction for date={}, reason={}: {}",
-                        date,
-                        ex.getClass().getSimpleName(),
-                        ex.getMessage());
-            }
-            return false;
-        }
+        List<HolidayDto> holidays = holidayService.getHolidays(date.getYear(), "RU");
+        return holidays.stream().anyMatch(holiday -> holiday.date().equals(date));
     }
 }

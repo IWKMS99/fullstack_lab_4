@@ -32,8 +32,6 @@ public class SitemapController {
         xml.append("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">");
 
         appendUrl(xml, base + "/schedule");
-        appendUrl(xml, base + "/login");
-        appendUrl(xml, base + "/register");
 
         for (Room room : rooms) {
             appendUrl(xml, base + "/schedule/room/" + room.getId());
@@ -44,6 +42,8 @@ public class SitemapController {
     }
 
     private void appendUrl(StringBuilder xml, String url) {
-        xml.append("<url><loc>").append(url).append("</loc></url>");
+        xml.append("<url><loc>")
+                .append(org.springframework.web.util.HtmlUtils.htmlEscape(url))
+                .append("</loc></url>");
     }
 }

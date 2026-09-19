@@ -35,6 +35,21 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class BookingHolidayRuleIT {
 
+    @Test
+    void shouldNotConfirmBookingWhenHolidayCheckFails() throws Exception {
+        when(holidayService.getHolidays(LocalDate.now().plusDays(2).getYear(), "RU"))
+                .thenThrow(
+                        new iwkms.roomflow.exception.HolidayUnavailableException(new IllegalStateException("offline")));
+        LocalDateTime start = LocalDate.now().plusDays(2).atTime(10, 0);
+        CreateBookingRequestDto request = new CreateBookingRequestDto(
+                UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), start, start.plusHours(1));
+        mockMvc.perform(post("/api/v1/bookings")
+                        .with(user(user))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isServiceUnavailable());
+    }
+
     @Autowired
     private MockMvc mockMvc;
 

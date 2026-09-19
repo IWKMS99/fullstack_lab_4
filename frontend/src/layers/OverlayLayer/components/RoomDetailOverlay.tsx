@@ -100,7 +100,7 @@ const RoomDetailOverlay = () => {
   const createMutation = useCreateBookingMutation(selectedDateKey, roomId ?? '');
 
   const handleBook = async () => {
-    if (!selectedRange || !roomId) return;
+    if (!selectedRange || !roomId || holidaysQuery.isPending || holidaysQuery.isError) return;
     if (isHolidaySelected) {
       toast.error(t('booking.disable.holiday'));
       return;
@@ -236,6 +236,15 @@ const RoomDetailOverlay = () => {
             </motion.div>
 
             {/* Content Body */}
+              {holidaysQuery.isPending && <p role="status">{t('calendar.loading')}</p>}
+              {holidaysQuery.isError && (
+                <div role="alert" className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm">
+                  <p>{t('calendar.unavailable')}</p>
+                  <button type="button" className="mt-2 underline" onClick={() => void holidaysQuery.refetch()}>{t('calendar.retry')}</button>
+                </div>
+              )}
+              {holidaysQuery.isSuccess && holidaysQuery.data.length === 0 && <p className="text-sm text-muted-foreground">{t('calendar.empty')}</p>}
+
             {isHolidaySelected && (
               <div className="rounded-[2rem] border border-white/20 bg-white/10 px-6 py-4 text-sm text-foreground backdrop-blur-md">
                 {t('roomDetail.holidayBanner')}
@@ -324,7 +333,7 @@ const RoomDetailOverlay = () => {
                         onClick={() => void handleBook()}
                         data-cursor={!selectedRange || createMutation.isPending || isHolidaySelected ? 'locked' : 'book'}
                         data-cursor-text={!selectedRange || createMutation.isPending || isHolidaySelected ? undefined : t('cursor.book')}
-                        disabled={!selectedRange || createMutation.isPending || isHolidaySelected}
+                        disabled={!selectedRange || createMutation.isPending || isHolidaySelected || holidaysQuery.isPending || holidaysQuery.isError}
                         className="w-1/2 rounded-2xl border border-primary/50 bg-primary/80 px-6 py-3 text-sm font-bold text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.4)] transition-all hover:bg-primary hover:shadow-[0_0_30px_hsl(var(--primary)/0.6)] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none sm:w-auto"
                       >
                         {createMutation.isPending ? t('roomDetail.bookingPending') : t('roomDetail.book')}
