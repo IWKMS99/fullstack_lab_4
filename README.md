@@ -31,10 +31,10 @@ flowchart LR
 
 ## Запуск
 
-Нужны Docker с Compose. Скопировать `.env.example` в `.env`, задать собственные значения секретов. Нельзя использовать демонстрационные значения в публичном окружении.
+Нужны Docker с Compose. Выполнить `python scripts/init_env.py`: скрипт создаёт `.env` со случайными локальными секретами и первым администратором (данные в `BOOTSTRAP_ADMIN_*`). Нельзя использовать демонстрационные значения в публичном окружении.
 
 ```bash
-cp .env.example .env
+python scripts/init_env.py
 docker compose -f docker-compose.prod.yml up --build -d
 ```
 
